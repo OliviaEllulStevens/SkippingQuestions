@@ -151,13 +151,13 @@ const page1_trial = addSurveyLogic(page1_qs);
 const page2_trial = addSurveyLogic(page2_qs);
 const page3_trial = addSurveyLogic(page3_qs);
 
-const save_data = {
+timeline.push({
   type: jsPsychPipe,
   action: "save",
   experiment_id: "amoLpdRWNDSD",
   filename: filename,
   data_string: ()=>jsPsych.data.get().csv()
-   };
+})
 
 // Timeline
 const timeline = [intro, page1_trial, page2_trial, page3_trial, debrief, save_data];
