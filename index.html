@@ -11,7 +11,7 @@
 <body></body>
 <script>
 
-// Init jsPsych
+// initiate jsPsych, main experiment controller
 const jsPsych = initJsPsych({
   on_finish: function() {
     //jsPsych.data.displayData();
@@ -19,13 +19,14 @@ const jsPsych = initJsPsych({
   }
 });
 
+// datapipe tut
 const subject_id = jsPsych.randomization.randomID(10);
 const filename = `${subject_id}.csv`;
             
-
+// marks total correct answers across all pages, initally 0
 let correct_count = 0;
 
-// Define correct answers separately
+// dictionary to define correct answers separately
 const correctAnswers = {
   q1: "3",
   q2: "75",
@@ -36,38 +37,48 @@ const correctAnswers = {
   q7: "Honk"
 };
 
-// Function to add click listeners for per-question RT, accuracy, skipped detection
+// function to add click listeners for per-question RT, accuracy, skipped detection
+// without this, rt would by default be per page
+// executes a custom specified function (adds code for rt, acc, skipped that can be used on any page)
 function addSurveyLogic(trial) {
 
   trial.on_load = function() {
-    // Initialize per-page variables
-    window.last_question_time = performance.now();
-    window.rt_data = {};
+    // ^^on_load = when page appears 
+    // initialize per-page tracking variables:
+    window.last_question_time = performance.now(); // last_q_t marks when Q is answered
+    window.rt_data = {}; // stores rt per Q
     window.acc_data = {};
-    window.answered = {};
+    window.answered = {}; // whether Q was answered
     
+    // perQ tracking variables, initially false or unknown
     trial.questions.forEach(q => {
       window.answered[q.name] = false;
       window.rt_data[q.name] = null;
       window.acc_data[q.name] = null;
     });
 
-    // Add click listeners to all radio buttons
+    // add click listeners to all radio buttons
     setTimeout(() => {
       const radios = document.querySelectorAll("input[type='radio']");
       radios.forEach(radio => {
         radio.addEventListener("click", function(event) {
           let now = performance.now();
+          // renders survey after after trial loads, adds 100ms time delay so HTML can finish rendering
+          // radios.forEach loops over every radio button
+          // radio.addEventListener - when p clicks any choice, custom logic runs 
 
-          // Map the input name to the correct question name
+          // Mmp the input name to the correct question name
           const qIndex = parseInt(event.target.name.replace("jspsych-survey-multi-choice-response-",""));
+          // ^^ 0,1,2,3 ... corresponds to radio buttons, indexes radio buttons that are clicked 
           const qname = trial.questions[qIndex].name;
           const response = event.target.value;
 
-          // Store response
+          // store response
           window.answered[qname] = true;
+          // ^^ if no click = false
           window.rt_data[qname] = now - window.last_question_time;
           window.last_question_time = now;
+          // time between prev answer -> this answer 
 
           // Check accuracy
           if(correctAnswers[qname] !== undefined){
@@ -82,7 +93,7 @@ function addSurveyLogic(trial) {
           }
           }
         );
-      }
+      } // compares chosen answer to correct them
     );
     }, 100); // slightly longer delay to ensure inputs exist
   };
@@ -158,6 +169,7 @@ timeline.push({
   filename: filename,
   data_string: ()=>jsPsych.data.get().csv()
 })
+//https://stackoverflow.com/questions/48919200/github-pages-only-showing-readme-file
 
 // Timeline
 const timeline = [intro, page1_trial, page2_trial, page3_trial, debrief, save_data];
