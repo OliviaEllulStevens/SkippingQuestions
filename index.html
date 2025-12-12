@@ -7,42 +7,53 @@
   <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.2.0"></script> 
   <script src="https://unpkg.com/@jspsych-contrib/plugin-pipe"></script>
   <link href="https://unpkg.com/jspsych@7.3.4/css/jspsych.css" rel="stylesheet" type="text/css" />
-</head>
-<body></body>
+  <style> 
+    input[type="radio"]:checked {
+      accent-color: black
+    } /* https://www.geeksforgeeks.org/css/how-to-change-the-color-of-radio-buttons-using-css/ */
+  </style> 
+</head> 
+<body> 
+  <label>
+    <input type="radio" name="choice" checked>
+  </label>
+</body>
 <script>
-
 // initiate jsPsych, main experiment controller
 const jsPsych = initJsPsych({
-  on_finish: function() {
-    //jsPsych.data.displayData();
+  on_finish: function() { 
+    jsPsych.data.displayData();
     console.log("Total correct answers:", correct_count);
   }
 });
+// https://www.jspsych.org/6.3/overview/callbacks/index.html 
 
-// datapipe tut
+// datapipe tut https://psy1903.com/jspsych/osf-via-datapipe
+// https://pipe.jspsych.org/getting-started
 const subject_id = jsPsych.randomization.randomID(10);
 const filename = `${subject_id}.csv`;
             
 // marks total correct answers across all pages, initally 0
 let correct_count = 0;
-
+// makes global counter for skipped questions
+let skipped_glob = [];
+  
 // dictionary to define correct answers separately
 const correctAnswers = {
-  q1: "3",
-  q2: "75",
-  q3: "Paris",
-  q4: "Intentionally dense?",
-  q5: "IHasCupquake",
-  q6: "This one",
-  q7: "Honk"
+  q1: "75", q2: "52", q3: "41", q4: "93", q5: "32", q6: "12+88", q7: "300", q8: "6", q9: "2", q10: "99.2", q11: "101", q12: "200", q13: "6", q14: "19", q15: "13", q16: "37", q17: "-1", q18: "30", q19: "27",
+  q20: "98", q21: "360", q22: "65", q23: "0", q24: "0", q25: "4", q26: "4", q27: "1", q28: "88", q29: "142", q30: "4", q31: "148", q32: "20", q33: "23", q34: "8", q35: "9", q36: "121", q37: "36", q38: "16",
 };
 
 // function to add click listeners for per-question RT, accuracy, skipped detection
 // without this, rt would by default be per page
 // executes a custom specified function (adds code for rt, acc, skipped that can be used on any page)
 function addSurveyLogic(trial) {
+  //wraps survey page and adds rt,acc,skip to each
 
   trial.on_load = function() {
+    if (typeof trial.questions === "function") {
+      trial.questions = trial.questions();
+    }
     // ^^on_load = when page appears 
     // initialize per-page tracking variables:
     window.last_question_time = performance.now(); // last_q_t marks when Q is answered
@@ -57,7 +68,7 @@ function addSurveyLogic(trial) {
       window.acc_data[q.name] = null;
     });
 
-    // add click listeners to all radio buttons
+    // add click listeners to all radio buttons https://stackoverflow.com/questions/10602781/how-to-add-listener-for-a-custom-event-in-the-dom 
     setTimeout(() => {
       const radios = document.querySelectorAll("input[type='radio']");
       radios.forEach(radio => {
@@ -80,7 +91,7 @@ function addSurveyLogic(trial) {
           window.last_question_time = now;
           // time between prev answer -> this answer 
 
-          // Check accuracy
+          // check accuracy
           if(correctAnswers[qname] !== undefined){
             if (response === correctAnswers[qname]) {
               window.acc_data[qname] = true;
@@ -104,17 +115,31 @@ function addSurveyLogic(trial) {
       if(!window.answered[q.name]){
         window.rt_data[q.name] = null;
         window.acc_data[q.name] = null;
+        skipped_glob.push({
+          prompt: q.prompt,
+          name: q.name,
+          options: q.options
+        });
       }
     });
 
     // Save data to trial
-    data.rt_per_question = window.rt_data;
-    data.accuracy_per_question = window.acc_data;
-    data.skipped = {};
-    trial.questions.forEach(q => {
-      data.skipped[q.name] = !window.answered[q.name];
-    });
-  };
+    data.rt_per_question = window.rt_data; // window rt data (rt per q) saves to rt_per_q as keys (qi)
+    data.accuracy_per_question = window.acc_data; // window acc data (acc per q) saves to acc_per_q as keys (qi)
+    data.skipped = {}; // creates new object
+    for ( let i = 0; i < trial.questions.length; i++) { //loops through every question in survey, one at a time
+      let question = trial.questions[i]; //question object containing name, prompt, options etc.
+      let questionName = question.name; //get name
+      let answeredValue = window.answered[questionName]; //was it answered
+      let wasSkipped; //was it skipped
+      if (answeredValue === false) { //=== false means skipped, otherwise not skipped 
+        wasSkipped = true;
+      } else {
+        wasSkipped = false;
+      }
+      data.skipped[questionName] = wasSkipped; //save when data was skipped
+    }
+    };
 
   return trial;
 }
@@ -128,28 +153,95 @@ const intro = {
 
 const page1_qs = {
   type: jsPsychSurveyMultiChoice,
-  questions: [
-    {prompt: "What is 1 + 2?", name:'q1', options:['1','2','3','4']},
-    {prompt: "What is 51 + 24?", name:'q2', options:['72','75','77','74']},
-    {prompt: "Capital of France?", name:'q3', options:['London','Bulgaria','Paris','George']}
-  ]
+  questions: jsPsych.randomization.shuffle( [ //https://www.jspsych.org/v7/reference/jspsych-randomization/
+  {prompt: "What is 51 + 24?", name: 'q1', options: ["72", "75", "77", "74"]},
+  {prompt: "What is 9 + 43?", name: 'q2', options: ["54", "51", "52", "49"]},
+  {prompt: "What is 4 + 37?", name: 'q3', options: ["31", "41", "44", "45"]},
+  {prompt: "What is 31 x 3?", name: 'q4', options: ["93", "63", "91", "90"]},
+  {prompt: "Which number is not a multiple of 6?", name: 'q5', options: ["24", "66", "32", "6"]},
+  {prompt: "Choose the sum that does not equal one", name: 'q6', options: ["0.51+0.49", "12+88", "0.76+0.24", "0.80+0.20"]},
+  {prompt: "What is 130 + 170?", name: 'q7', options: ["300", "400", "280", "330"]},
+  {prompt: "What is 36/6?", name: 'q8', options: ["5", "6", "7", "8"]},
+  {prompt: "What is 56 - 58?",name: 'q9', options: ["4", "1", "2", "-2"]},
+  {prompt: "What is 98.7 + 0.5?",name: 'q10', options: ["99.2", "99.4", "100.2", "100.4"]},
+  {prompt: "What is 23 + 78?",name: 'q11', options: ["100", "101", "103", "104"]},
+  {prompt: "What is 50 x 4?", name: 'q12',options: ["220", "200", "150", "250"]},
+  {prompt: "How many faces are on a cube?",name: 'q13', options: ["5", "4", "7", "6"]},
+  {prompt: "Which of these numbers is prime?",name: 'q14', options: ["15", "16", "19", "21"]},
+  {prompt: "Halve 26",name: 'q15', options: ["12", "14", "13", "11"]},
+  {prompt: "What is 90 - 53?", name: 'q16',options: ["37", "47", "33", "29"]},
+  {prompt: "What is 10 - 11?", name: 'q17',options: ["1", "2", "-2", "-1"]},
+  {prompt: "What is 43 - 13?", name: 'q18',options: ["30", "29", "28", "31"]},
+  {prompt: "What is 5 - 0?",name: 'q18', options: ["0", "5", "6", "4"]},
+  {prompt: "What is 94 - 67?", name: 'q19',options: ["39", "32", "27", "31"]},
+  {prompt: "What is 56 + 42?", name: 'q20',options: ["88", "98", "94", "86"]},
+  {prompt: "How many degrees are in a square?", name: 'q21', options: ["720", "360", "180", "420"]},
+  {prompt: "What is 5 x 13?", name: 'q22',options: ["60", "75", "70", "65"]},
+  {prompt: "What is 0 x 0?", name: 'q23',options: ["0.1", "0", "1", "2"]},
+  {prompt: "What is 5 x 0?", name: 'q24',options: ["1", "5", "0", "4"]},
+  {prompt: "What is 93 - 89?", name: 'q25',options: ["5", "4", "6", "7"]},
+  {prompt: "What is 12/3?", name: 'q26',options: ["4", "3", "6", "2"]},
+  {prompt: "What is 5/5?", name: 'q27',options: ["5", "2", "1", "0"]},
+  {prompt: "What is 4 x 22?", name: 'q28',options: ["44", "88", "99", "80"]},
+  {prompt: "What is 60 + 82?", name: 'q29',options: ["122", "136", "142", "132"]},
+  {prompt: "What is 20/5?", name: 'q30',options: ["2", "4", "6", "5"]},
+  {prompt: "What is 58 + 90?", name: 'q31',options: ["139", "150", "138", "148"]},
+  {prompt: "What is 83 - 63?", name: 'q32',options: ["15", "20", "22", "23"]},
+  {prompt: "What is 23.25 to the nearest whole number?", name: 'q33',options: ["23", "24", "22", "20"]},
+  {prompt: "What is the square root of 64?",name: 'q34', options: ["6", "12", "8", "16"]},
+  {prompt: "What is 54/6?", name: 'q35',options: ["9", "6", "12", "4"]},
+  {prompt: "What is 11 x 11?", name: 'q36',options: ["139", "111", "121", "100"]},
+  {prompt: "What is 73 - 37?", name: 'q37',options: ["41", "51", "42", "36"]},
+  {prompt: "What is 4 squared?", name: 'q38',options: ["24", "16", "8", "4"]},
+  {prompt: "What is 9 x 7?", name: 'q39',options: ["63", "61", "70", "54"]},
+  {prompt: "What is 50 x 11?", name: 'q40',options: ["520", "500", "550", "450"]},
+  {prompt: "How many centimetres are in 5 metres?", name: 'q41',options: ["50000", "500", "5", "50"]},
+  {prompt: "What is 0.1 + 1.3?", name: 'q42',options: ["1.4", "1.1", "1.7", "1.2"]},
+  {prompt: "What is 0.4 + 1.5?", name: 'q43',options: ["2.1", "3.4", "1.5", "1.9"]},
+  {prompt: "What is 3.9 - 1.8?", name: 'q44',options: ["2.1", "2.3", "2.4", "2.5"]},
+  {prompt: "What is 0.32 + 0.53?",name: 'q45', options: ["0.81", "0.85", "0.89", "0.82"]},
+  {prompt: "What is 0.71 - 0.04?", name: 'q46',options: ["0.70", "0.65", "0.75", "0.67"]},
+  {prompt: "What is 4.7 + 2",name: 'q47', options: ["6.5", "4.9", "6.7", "2.7"]},
+  {prompt: "What is 1.2 - 0.5?",name: 'q48', options: ["0.8", "1", "0.7", "0.5"]},
+  {prompt: "What is 21 + 13?",name: 'q49', options: ["30", "34", "32", "36"]},
+  {prompt: "What is 78 - 61?",name: 'q50', options: ["17", "3", "14", "15"]},
+  ])
 };
 
 const page2_qs = {
   type: jsPsychSurveyMultiChoice,
-  questions: [
+  questions: jsPsych.randomization.shuffle( [
     {prompt: "Huh?", name:'q4', options:['Intentionally dense?','Cucumber','Eggplant','Corn']},
     {prompt: "Who is the best YouTuber?", name:'q5', options:['IHasCupquake','Banana','Orange','Grape']}
-  ]
+  ])
 };
 
 const page3_qs = {
   type: jsPsychSurveyMultiChoice,
-  questions: [
+  questions: jsPsych.randomization.shuffle([
     {prompt: "AHHHH?", name:'q6', options:['This one','Cucumber','Eggplant','Corn']},
     {prompt: "RAAAA?", name:'q7', options:['Honk','Banana','Orange','Grape']}
-  ]
+  ])
 };
+
+const page4_qs = {
+  type: jsPsychSurveyMultiChoice,
+  questions: function() {
+    const baseQuestions = jsPsych.randomization.shuffle([
+    {prompt: "WHAAAAA?", name:'q8', options:['HERE','no1','no2','no3']},
+    {prompt: "hmmm?", name:'q9', options:['MEEEEE','yes1','yes2','yes3']},
+    ]);
+    if (skipped_glob.length === 0) {
+      return baseQuestions.concat([{
+        prompt: "Continue",
+        name: "no_skipped_retry",
+        options: ["Next"]
+      }]);
+    }
+    const randomizedSkipped = jsPsych.randomization.shuffle(skipped_glob);
+    return baseQuestions.concat(randomizedSkipped)
+  }
+}
 
 const debrief = {
   type: jsPsychSurveyMultiChoice,
@@ -161,6 +253,10 @@ const debrief = {
 const page1_trial = addSurveyLogic(page1_qs);
 const page2_trial = addSurveyLogic(page2_qs);
 const page3_trial = addSurveyLogic(page3_qs);
+const page4_trial = addSurveyLogic(page4_qs)
+
+// Timeline
+var timeline = [intro, page1_trial, page2_trial, page3_trial, page4_trial, debrief];
 
 timeline.push({
   type: jsPsychPipe,
@@ -170,9 +266,6 @@ timeline.push({
   data_string: ()=>jsPsych.data.get().csv()
 })
 //https://stackoverflow.com/questions/48919200/github-pages-only-showing-readme-file
-
-// Timeline
-const timeline = [intro, page1_trial, page2_trial, page3_trial, debrief, save_data];
 
 jsPsych.run(timeline);
 
